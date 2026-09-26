@@ -16,6 +16,7 @@ import random
 import sys
 import time
 from collections import defaultdict
+from functools import partial
 from typing import Dict, List, Set, Tuple
 
 import lightgbm as lgb
@@ -159,7 +160,8 @@ def parallel_block(s1: pd.DataFrame, idx: BlockingIndex, top_k: int,
     else:
         ctx = mp.get_context('fork')
         with ctx.Pool(n_workers, initializer=_init_blocking, initargs=(idx,)) as pool:
-            for batch in pool.starmap(_blocking_chunk, [(c, top_k) for c in chunks]):
+            fn = partial(_blocking_chunk, top_k=top_k)
+            for batch in pool.imap_unordered(fn, chunks):
                 for sid, scored in batch:
                     results[sid] = scored
                 done = len(results)
@@ -300,7 +302,8 @@ def parallel_infer(
         ctx = mp.get_context('fork')
         with ctx.Pool(n_workers, initializer=_init_inference,
                       initargs=(c_reps, s1_reps, model)) as pool:
-            for batch in pool.starmap(_inference_chunk, [(c, threshold) for c in chunks]):
+            fn = partial(_inference_chunk, threshold=threshold)
+            for batch in pool.imap_unordered(fn, chunks):
                 for sid, matched in batch:
                     results[sid] = matched
                 done = len(results)

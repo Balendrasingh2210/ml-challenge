@@ -23,7 +23,7 @@ env/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
+# *.ipynb  — kaggle_notebook.ipynb is tracked intentionally
 
 # Models / large artifacts
 *.pkl

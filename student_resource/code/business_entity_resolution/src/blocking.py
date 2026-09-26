@@ -89,7 +89,7 @@ def _compute(name: str, address: str, country: str):
 class BlockingIndex:
     """Memory-efficient inverted index (strings only, no frozensets, no counts)."""
 
-    def __init__(self, max_per_key: int = 80, tok_cache_size: int = 200_000):
+    def __init__(self, max_per_key: int = 80, tok_cache_size: int = 100_000):
         self.max_per_key = max_per_key
         self._index: Dict[str, List[str]] = defaultdict(list)
         self._norm_names: Dict[str, str] = {}

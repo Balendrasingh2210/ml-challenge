@@ -94,6 +94,7 @@ class BlockingIndex:
         self._index: Dict[str, List[str]] = defaultdict(list)
         self._norm_names: Dict[str, str] = {}
         self._addr_nums_str: Dict[str, str] = {}
+        self._tok_cache: Dict[str, Tuple[frozenset, frozenset]] = {}
 
     def add(self, entity_id: str, name: str, address: str, country: str) -> None:
         keys, norm_name, addr_nums, _ = _compute(name, address, country)
@@ -138,8 +139,12 @@ class BlockingIndex:
 
         scored: List[Tuple[float, str]] = []
         for eid in raw:
-            c_norm = self._norm_names.get(eid, '')
-            c_toks, c_ngs = _tokens_and_ngrams(c_norm)
+            cached = self._tok_cache.get(eid)
+            if cached is None:
+                c_norm = self._norm_names.get(eid, '')
+                cached = _tokens_and_ngrams(c_norm)
+                self._tok_cache[eid] = cached
+            c_toks, c_ngs = cached
             c_addr_str = self._addr_nums_str.get(eid, '')
             c_nums = frozenset(c_addr_str.split(',')) if c_addr_str else frozenset()
 

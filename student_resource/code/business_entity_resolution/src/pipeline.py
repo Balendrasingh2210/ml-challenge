@@ -354,6 +354,7 @@ def main():
     print("=" * 60)
     print("Business Entity Resolution Pipeline")
     print(f"  workers={args.workers}  top_k={args.top_k}  max_per_key={args.max_per_key}")
+    print("  [workflow-test-marker: local-edit -> github -> kaggle OK]")
     print("=" * 60)
 
     # ── [1] Load training S1 + GT ─────────────────────────────────────────────

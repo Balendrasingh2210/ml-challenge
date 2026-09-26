@@ -18,7 +18,7 @@ Memory budget for 10M records:
 from __future__ import annotations
 
 import time
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from typing import Dict, List, Set, Tuple
 
 from normalize import (
@@ -89,12 +89,17 @@ def _compute(name: str, address: str, country: str):
 class BlockingIndex:
     """Memory-efficient inverted index (strings only, no frozensets, no counts)."""
 
-    def __init__(self, max_per_key: int = 80):
+    def __init__(self, max_per_key: int = 80, tok_cache_size: int = 200_000):
         self.max_per_key = max_per_key
         self._index: Dict[str, List[str]] = defaultdict(list)
         self._norm_names: Dict[str, str] = {}
         self._addr_nums_str: Dict[str, str] = {}
-        self._tok_cache: Dict[str, Tuple[frozenset, frozenset]] = {}
+        # Bounded LRU: caching every candidate's tokens/ngrams avoids recomputing
+        # them on every repeat query, but each forked worker process grows its
+        # own cache independently, so it must stay bounded to avoid multiplying
+        # memory across workers.
+        self._tok_cache: "OrderedDict[str, Tuple[frozenset, frozenset]]" = OrderedDict()
+        self._tok_cache_size = tok_cache_size
 
     def add(self, entity_id: str, name: str, address: str, country: str) -> None:
         keys, norm_name, addr_nums, _ = _compute(name, address, country)
@@ -144,6 +149,10 @@ class BlockingIndex:
                 c_norm = self._norm_names.get(eid, '')
                 cached = _tokens_and_ngrams(c_norm)
                 self._tok_cache[eid] = cached
+                if len(self._tok_cache) > self._tok_cache_size:
+                    self._tok_cache.popitem(last=False)
+            else:
+                self._tok_cache.move_to_end(eid)
             c_toks, c_ngs = cached
             c_addr_str = self._addr_nums_str.get(eid, '')
             c_nums = frozenset(c_addr_str.split(',')) if c_addr_str else frozenset()

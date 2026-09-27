@@ -28,6 +28,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from blocking import BlockingIndex
 from features import FEATURE_NAMES, EntityRep, build_reps, extract_features_from_reps
 
+def _mp_context():
+    """'fork' is fast (copy-on-write) but only exists on POSIX; Windows only
+    has 'spawn'. Picking the platform default keeps this code portable."""
+    return mp.get_context('fork' if sys.platform != 'win32' else 'spawn')
+
+
 # ── Globals for forked workers ────────────────────────────────────────────────
 _IDX: BlockingIndex | None = None
 _C_REPS: Dict[str, EntityRep] = {}
@@ -161,7 +167,7 @@ def parallel_block(s1: pd.DataFrame, idx: BlockingIndex, top_k: int,
             if done % 50_000 < chunk_size:
                 print(f"    {done:,}/{total:,} ({time.time()-t0:.0f}s)", flush=True)
     else:
-        ctx = mp.get_context('fork')
+        ctx = _mp_context()
         with ctx.Pool(n_workers, initializer=_init_blocking, initargs=(idx,)) as pool:
             fn = partial(_blocking_chunk, top_k=top_k)
             for batch in pool.imap_unordered(fn, chunks):
@@ -305,7 +311,7 @@ def parallel_infer(
             if done % 50_000 < chunk_size:
                 print(f"    {done:,}/{total:,} ({time.time()-t0:.0f}s)", flush=True)
     else:
-        ctx = mp.get_context('fork')
+        ctx = _mp_context()
         with ctx.Pool(n_workers, initializer=_init_inference,
                       initargs=(c_reps, s1_reps, model)) as pool:
             fn = partial(_inference_chunk, threshold=threshold)

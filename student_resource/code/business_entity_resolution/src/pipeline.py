@@ -157,6 +157,9 @@ def parallel_block(s1: pd.DataFrame, idx: BlockingIndex, top_k: int,
         for chunk in chunks:
             for sid, nm, ad, ct in chunk:
                 results[sid] = idx.query_and_score(nm, ad, ct, top_k=top_k)
+            done = len(results)
+            if done % 50_000 < chunk_size:
+                print(f"    {done:,}/{total:,} ({time.time()-t0:.0f}s)", flush=True)
     else:
         ctx = mp.get_context('fork')
         with ctx.Pool(n_workers, initializer=_init_blocking, initargs=(idx,)) as pool:
@@ -298,6 +301,9 @@ def parallel_infer(
                     results[sid] = [e for e, p in zip(eids, probs) if p >= threshold]
                 else:
                     results[sid] = []
+            done = len(results)
+            if done % 50_000 < chunk_size:
+                print(f"    {done:,}/{total:,} ({time.time()-t0:.0f}s)", flush=True)
     else:
         ctx = mp.get_context('fork')
         with ctx.Pool(n_workers, initializer=_init_inference,
